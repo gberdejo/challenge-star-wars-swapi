@@ -1,0 +1,76 @@
+org: gberdejo
+app: server-gabriel
+service: server-gabriel
+frameworkVersion: '3'
+
+custom:
+  defaultStage: prod
+  profiles:
+    dev: reto-dev
+    prod: reto-prod
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+  stage: ${opt:stage, self:custom.defaultStage}
+  profile: ${self:custom.profiles.${self:provider.stage}}
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - dynamodb:*
+          Resource:
+            - Fn::GetAtt:
+              - "StarWarsTable"
+              - "Arn"
+  environment:
+    API_SWAPI: https://swapi.dev/api
+    NODE_ENV: ${opt:stage, self:custom.defaultStage} 
+    DYNAMODB_TABLE: StarWarsTable-${self:service}-${opt:stage, self:provider.stage}
+
+functions:
+  findOnePeople:
+    handler: src/controllers/people/findOne.get
+    events:
+      - httpApi:
+          path: /people/{sku}
+          method: get
+  findOnePeopleLegacy:
+    handler: src/controllers/people/findOneLegacy.get
+    events:
+      - httpApi:
+          path: /people/legacy/{id}
+          method: get
+  findAllPeople:
+    handler: src/controllers/people/findAll.get
+    events:
+      - httpApi:
+          path: /people
+          method: get
+  createPeople:
+    handler: src/controllers/people/create.post
+    events:
+      - httpApi:
+          path: /people
+          method: post
+
+resources:
+  Resources:
+    StarWarsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: sku
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sku
+            KeyType: HASH
+
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
