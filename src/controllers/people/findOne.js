@@ -8,6 +8,7 @@ module.exports.get = async (event) => {
     const sku = event.pathParameters.sku
 
     const people = await PeopleService.findOnePeopleBySku(sku)
+
     return response(STATUS.OK, people)
   } catch (err) {
     return response(STATUS.INTERNAL_SERVER_ERROR, {
